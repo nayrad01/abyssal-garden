@@ -1,4 +1,4 @@
-/* Deep Wonders v7 - reliable button D-pad plus analog stick fallback. */
+/* Deep Wonders v8 - right dock touch fix. */
 (function(){
 "use strict";
 function mount({move,vertical,boost}){
@@ -25,10 +25,24 @@ function mount({move,vertical,boost}){
   "#dw-tip{position:fixed;bottom:max(182px,calc(env(safe-area-inset-bottom) + 164px));left:50%;transform:translateX(-50%);font:500 10px/1.3 system-ui;color:#d7ffffd0;white-space:nowrap;text-shadow:0 2px 4px #001822;pointer-events:none}",
   "@media(max-width:380px){#dw-stick{width:116px;height:116px}#dw-thumb{width:48px;height:48px}#dw-dpad{width:124px;height:124px}#dw-switch{bottom:max(161px,calc(env(safe-area-inset-bottom) + 140px))}#dw-actions{grid-template-columns:repeat(2,54px);grid-template-rows:repeat(2,44px) 36px}#dw-tip{display:none}}"
  ].join("\n");
+ st.textContent += [
+ "#dw-touch{position:static!important;inset:auto!important;pointer-events:auto!important}",
+ "#dw-actions{position:fixed!important;z-index:10000!important;pointer-events:auto!important;overflow:visible!important}",
+ "#dw-dpad{position:absolute!important;left:-2px!important;right:auto!important;top:auto!important;bottom:calc(100% + 14px)!important;pointer-events:auto!important;z-index:10003!important}",
+ "#dw-actions #dw-dpad button{pointer-events:auto!important;min-width:0;min-height:0;margin:0;padding:0;font:900 24px/1 system-ui;letter-spacing:0;touch-action:none!important;box-shadow:0 3px 8px #002330;color:#eaffff;background:#0a536aa9}",
+ "#dw-actions #dw-dpad button.is-held{background:#80e1f0!important;color:#002e3b!important}",
+ "#dw-switch{position:absolute!important;left:0!important;right:auto!important;bottom:calc(100% + 177px)!important;width:100%!important;pointer-events:auto!important;z-index:10003!important}",
+ "#dw-stick{position:absolute!important;left:0!important;bottom:calc(100% + 14px)!important;pointer-events:auto!important;z-index:10003!important}",
+ "#dw-motion-status{left:auto!important;right:max(12px,env(safe-area-inset-right))!important;max-width:65vw!important;z-index:10002!important}",
+ "@media(max-width:380px){#dw-switch{bottom:calc(100% + 151px)!important}}"
+ ].join("\n");
  document.head.appendChild(st);
  const root=document.createElement("div");root.id="dw-touch";
- root.innerHTML='<div id="dw-dpad"><button id="dw-n" type="button" aria-label="Swim forward">▲</button><button id="dw-w" type="button" aria-label="Swim left">◀</button><button id="dw-e" type="button" aria-label="Swim right">▶</button><button id="dw-s" type="button" aria-label="Swim backward">▼</button></div><button id="dw-switch" type="button">Try joystick</button><div id="dw-stick" role="group" aria-label="Move joystick"><div id="dw-thumb"></div><span id="dw-stick-label">MOVE</span></div><div id="dw-actions"><button id="dw-up" type="button">↑<br>UP</button><button id="dw-down" type="button">↓<br>DOWN</button><button id="dw-boost" type="button">⚡<br>BOOST</button><button id="dw-free" type="button">Free swim: OFF</button></div><div id="dw-tip">Left stick: move · Drag water: look</div><div id="dw-motion-status">Stick idle · travel 0</div>';
+ root.innerHTML='<div id="dw-dpad"><button id="dw-n" type="button" aria-label="Swim forward">▲</button><button id="dw-w" type="button" aria-label="Swim left">◀</button><button id="dw-e" type="button" aria-label="Swim right">▶</button><button id="dw-s" type="button" aria-label="Swim backward">▼</button></div><button id="dw-switch" type="button">Try joystick</button><div id="dw-stick" role="group" aria-label="Move joystick"><div id="dw-thumb"></div><span id="dw-stick-label">MOVE</span></div><div id="dw-actions"><button id="dw-up" type="button">↑<br>UP</button><button id="dw-down" type="button">↓<br>DOWN</button><button id="dw-boost" type="button">⚡<br>BOOST</button><button id="dw-free" type="button">Free swim: OFF</button></div><div id="dw-tip">Arrows: swim · Drag water: look</div><div id="dw-motion-status">Stick idle · travel 0</div>';
  document.body.appendChild(root);
+ /* Reuse the proven right-hand hit-test region rather than the ignored left overlay. */
+ const dock=root.querySelector("#dw-actions");
+ dock.append(root.querySelector("#dw-dpad"),root.querySelector("#dw-switch"),root.querySelector("#dw-stick"));
  const pad=root.querySelector("#dw-stick"),thumb=root.querySelector("#dw-thumb");
  let pointer=null,touchId=null;
  window.__dwAnalog={forward:0,side:0,eventCount:0,source:"idle"};
@@ -129,7 +143,7 @@ function mount({move,vertical,boost}){
   ghost.style.background=window.__dwGhost?"#1e9daa":"#07364abf";
  });
  window.addEventListener("blur",()=>{reset();for(const k in directions)directions[k]=false;updatePad();vertical(0,0);boost(false)});
- window.__iosLog?.("Mobile D-pad ready: use arrow buttons at lower left");
+ window.__iosLog?.("V8 right-hand movement dock ready");
  return {reset};
 }
 window.DeepWondersControls={mount};
