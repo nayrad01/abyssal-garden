@@ -27,14 +27,14 @@ function mount({move,vertical,boost}){
  ].join("\n");
  st.textContent += [
  "#dw-touch{position:static!important;inset:auto!important;pointer-events:auto!important}",
- "#dw-actions{position:fixed!important;z-index:10000!important;pointer-events:auto!important;overflow:visible!important}",
- "#dw-dpad{position:absolute!important;left:-2px!important;right:auto!important;top:auto!important;bottom:calc(100% + 14px)!important;pointer-events:auto!important;z-index:10003!important}",
+ "#dw-actions{position:fixed!important;z-index:10000!important;pointer-events:auto!important;overflow:visible!important;min-height:380px!important;align-content:end!important}",
+ "#dw-dpad{position:absolute!important;left:-2px!important;right:auto!important;top:auto!important;bottom:176px!important;pointer-events:auto!important;z-index:10003!important}",
  "#dw-actions #dw-dpad button{pointer-events:auto!important;min-width:0;min-height:0;margin:0;padding:0;font:900 24px/1 system-ui;letter-spacing:0;touch-action:none!important;box-shadow:0 3px 8px #002330;color:#eaffff;background:#0a536aa9}",
  "#dw-actions #dw-dpad button.is-held{background:#80e1f0!important;color:#002e3b!important}",
- "#dw-switch{position:absolute!important;left:0!important;right:auto!important;bottom:calc(100% + 177px)!important;width:100%!important;pointer-events:auto!important;z-index:10003!important}",
- "#dw-stick{position:absolute!important;left:0!important;bottom:calc(100% + 14px)!important;pointer-events:auto!important;z-index:10003!important}",
+ "#dw-switch{position:absolute!important;left:0!important;right:auto!important;bottom:336px!important;width:100%!important;pointer-events:auto!important;z-index:10003!important}",
+ "#dw-stick{position:absolute!important;left:0!important;bottom:176px!important;pointer-events:auto!important;z-index:10003!important}",
  "#dw-motion-status{left:auto!important;right:max(12px,env(safe-area-inset-right))!important;max-width:65vw!important;z-index:10002!important}",
- "@media(max-width:380px){#dw-switch{bottom:calc(100% + 151px)!important}}"
+ "@media(max-width:380px){#dw-dpad,#dw-stick{bottom:160px!important}#dw-switch{bottom:292px!important}#dw-actions{min-height:330px!important}}"
  ].join("\n");
  document.head.appendChild(st);
  const root=document.createElement("div");root.id="dw-touch";
