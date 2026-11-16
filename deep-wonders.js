@@ -174,31 +174,32 @@ function buildFish(Et){
 function addFauna(fish,mantas){
  const hash=n=>{const v=Math.sin(n*127.17+78.23)*43758.5453;return v-Math.floor(v)};
  // Keep wildlife around the fixed landmarks, but make the fish large enough to notice.
- for(const [x,y,z,radius,count] of [[8,-30,82,12,46],[-43,-29,-62,15,38],[29,-28,44,15,48],[-65,-30,19,14,35],[48,-27,27,11,32]]){
+ for(const [x,y,z,radius,count] of [[8,-30,82,12,30],[-43,-29,-62,15,24],[29,-28,44,15,30],[-65,-30,19,14,20],[48,-27,27,11,20]]){
   for(let i=0;i<count;i++){
    const seed=hash(i+x*9+z*5);
    const sign=hash(seed*13.2)>.5?1:-1;
    fish.push(x,y,z,radius,seed,sign*1.6/radius,.72+hash(i*3+x)*.45,hash(i*1.7+z));
   }
  }
- // Repeating *world-anchored* schools. The fish vertex shader tiles their
- // positions around the camera, so every location has nearby wildlife.
- // 121 independently swimming schools, about 1,900 visible-size fish total.
- const spacing=11.5;
- for(let gx=-5;gx<=5;gx++)for(let gz=-5;gz<=5;gz++){
-  const id=(gx+5)*11+gz+5;
-  const x=gx*spacing+(hash(id*7.3)-.5)*3.5;
-  const z=gz*spacing+(hash(id*13.7)-.5)*3.5;
-  const heightOffset=(hash(id*23.1)-.5)*15;
-  const orbit=3.3+hash(id*5.6)*6.7;
-  const count=12+Math.floor(hash(id*11.91)*12);
+ // 49 distinct schools, each keeping one shared direction, species and speed.
+ // Horizontal placement repeats at 126 world units, while vertical placement
+ // is fixed to the ocean, NEVER tied to the player's camera height.
+ const spacing=17.6;
+ for(let gx=-3;gx<=3;gx++)for(let gz=-3;gz<=3;gz++){
+  const id=(gx+3)*7+gz+3;
+  const x=gx*spacing+(hash(id*7.3)-.5)*4;
+  const z=gz*spacing+(hash(id*13.7)-.5)*4;
+  const worldDepth=-28+(hash(id*23.1)-.5)*30;
+  const orbit=3.8+hash(id*5.6)*3.5;
+  const count=17+Math.floor(hash(id*11.91)*7);
   const direction=hash(id*2.75)>.5?1:-1;
+  const sharedPhase=hash(id*6.21+.17);
+  const sharedOmega=direction*(.65+hash(id*2.3)*.5)/orbit;
+  const groupSize=1.12+hash(id*4.7)*.62;
   for(let j=0;j<count;j++){
    const seed=hash(id*19.73+j*1.71+.37);
-   const phase=hash(j*6.21+id*.17);
-   const size=(id%8===0?1.95:1.16)+seed*(id%8===0?.96:.8);
-   const omega=direction*(.9+hash(id*2.3+j*.83)*.8)/orbit;
-   fish.push(x,heightOffset,z,-orbit,seed,omega,size,phase);
+   const size=groupSize*(.89+seed*.22);
+   fish.push(x,worldDepth,z,-orbit,seed,sharedOmega,size,sharedPhase);
   }
  }
  // Big sculpted rays drift through the same nearby-space tiling system.
@@ -207,11 +208,11 @@ function addFauna(fish,mantas){
   const id=(gx+2)*5+gz+2;
   const x=gx*23.3+(hash(id*8.21)-.5)*11;
   const z=gz*23.3+(hash(id*2.17)-.5)*11;
-  const heightOffset=(hash(id*12.11)-.5)*20;
+  const worldDepth=-24+(hash(id*12.11)-.5)*22;
   const orbit=7.5+hash(id*3.17)*12;
   const sign=hash(id*17.5)>.5?1:-1;
   const wingSize=2.3+hash(id*7.41)*3.4;
-  mantas.push(x,heightOffset,z,-orbit,hash(id*7.3)*6.28,sign*(.025+hash(id*2.1)*.045),wingSize,hash(id*11.3));
+  mantas.push(x,worldDepth,z,-orbit,hash(id*7.3)*6.28,sign*(.025+hash(id*2.1)*.045),wingSize,hash(id*11.3));
  }
  // Existing larger animals at the six major discoveries.
  for(const a of [
