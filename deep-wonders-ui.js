@@ -1,4 +1,4 @@
-/* Deep Wonders: compact touch-friendly explorer overlay. */
+/* Deep Wonders: landscape-stage explorer overlay. */
 (function(){
 "use strict";
 function mount(scenes,onPick){
@@ -7,7 +7,7 @@ function mount(scenes,onPick){
   "#dw-ui{position:fixed;z-index:800;top:max(12px,env(safe-area-inset-top));bottom:auto;left:max(12px,env(safe-area-inset-left));font:600 13px/1.35 -apple-system,system-ui,sans-serif;max-width:calc(100vw - 24px);color:#eafcff}",
   "body:not(.m) #dw-ui{display:none}",
   "#dw-toggle{border:1px solid #77edffbb;background:#073547ee;color:#eafcff;border-radius:18px;padding:10px 13px;letter-spacing:0;font:700 13px system-ui;box-shadow:0 3px 18px #001d24;text-transform:none}",
-  "#dw-panel{display:none;position:absolute;top:49px;bottom:auto;left:0;width:min(340px,calc(100vw - 32px));max-height:min(66vh,430px);overflow:auto;border:1px solid #72cfe0;border-radius:15px;padding:13px;background:#041e2bf2;box-shadow:0 5px 30px #00161c}",
+  "#dw-panel{display:none;position:absolute;top:49px;bottom:auto;left:0;width:min(340px,calc(100vw - 32px));max-height:min(55dvh,300px);overflow:auto;border:1px solid #72cfe0;border-radius:15px;padding:13px;background:#041e2bf2;box-shadow:0 5px 30px #00161c}",
   "#dw-ui.dw-open #dw-panel{display:block}",
   "#dw-panel h2{font:800 16px system-ui;margin:0 0 5px;color:#9ff0ff}",
   "#dw-panel p{font:400 12px system-ui;margin:0 0 10px;color:#bde6e9}",
@@ -19,7 +19,7 @@ function mount(scenes,onPick){
  document.head.appendChild(style);
  const root=document.createElement("div");root.id="dw-ui";
  root.innerHTML='<button id="dw-toggle" type="button">✦ Explore · 6 places</button><div id="dw-panel"><h2>Deep Wonders</h2><p>Pick a location to resume swimming there.</p><div id="dw-grid"></div><div id="dw-current">Select an area to begin</div></div>';
- document.body.appendChild(root);
+ (document.getElementById("dw-stage")||document.body).appendChild(root);
  const grid=root.querySelector("#dw-grid");
  for(let i=0;i<scenes.length;i++){
   const destination=scenes[i],button=document.createElement("button");button.type="button";
