@@ -1,6 +1,6 @@
-/* Deep Wonders V18 — proportional thumb-reach zones shared by free-look, turning and strafing.
+/* Deep Wonders V19 — symmetric free-look turning and 27% ergonomic center band.
  * Right hold swims forward, right double-tap-and-hold swims backward.
- * The center fifth of the landscape display starts stationary free-look.
+ * The center 27% of the landscape display starts stationary free-look.
  * The same center-band boundaries govern sustained inward turning and strafing.
  * Left vertical drag adjusts depth, horizontal drag strafes continuously.
  * Left strafe reaches maximum at the outer edge or the near center-band boundary; double tap-hold boosts.
@@ -51,7 +51,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  // Touches are classified by their ORIGINAL landscape-space starting point.
  // Recognition is done in document capture so the center needs no extra
  // overlay/hitbox (especially important for the earlier iPhone hit-test issue).
- const centerHalfWidth=()=>gameWidth()*.10;
+ const centerHalfWidth=()=>gameWidth()*.135;
  const centerLeft=()=>gameWidth()*.5-centerHalfWidth();
  const centerRight=()=>gameWidth()*.5+centerHalfWidth();
  const isCenter=x=>x>=centerLeft()&&x<=centerRight();
@@ -95,16 +95,25 @@ function mount({move,look,verticalDrag,boost,dash}){
   const dt=edgeLastTime?Math.max(0,Math.min(.05,(time-edgeLastTime)/1000)):0;
   edgeLastTime=time;
   if(dt&&right.edgeArmed){
-   const width=gameWidth(),inwardBorder=centerRight();
-   const margin=Math.max(30,Math.min(72,width*.14));
-   const x=Math.max(0,Math.min(width,right.x));
-   // The right edge of the center free-look band is also the reach
-   // threshold for continuous leftward turning.
-   const inward=x<inwardBorder?Math.min(1,(inwardBorder-x)/margin):0;
-   const outward=x>width-margin?Math.min(1,(x-(width-margin))/margin):0;
-   if(inward>0||outward>0){
-    const turn=inward>0?-(.35+.65*inward):(.35+.65*outward);
-    look(turn*2.25*dt/.0022,0);
+   const width=gameWidth(),x=Math.max(0,Math.min(width,right.x));
+   if(right.dir===0){
+    // Stationary free-look is perfectly symmetric: after moving the
+    // thumb from the start point, the relevant center-band boundary
+    // activates the same continuous turning speed in either direction.
+    const leftHeld=x<=centerLeft()&&right.startX-x>=20;
+    const rightHeld=x>=centerRight()&&x-right.startX>=20;
+    if(leftHeld||rightHeld)look((leftHeld?-1:1)*2.25*dt/.0022,0);
+   }else{
+    // Keep the existing swimming gestures: inward left-turn reaches
+    // the center's right boundary; outward right-turn uses outer edge.
+    const inwardBorder=centerRight();
+    const margin=Math.max(30,Math.min(72,width*.14));
+    const inward=x<inwardBorder?Math.min(1,(inwardBorder-x)/margin):0;
+    const outward=x>width-margin?Math.min(1,(x-(width-margin))/margin):0;
+    if(inward>0||outward>0){
+     const turn=inward>0?-(.35+.65*inward):(.35+.65*outward);
+     look(turn*2.25*dt/.0022,0);
+    }
    }
   }
   window.requestAnimationFrame(tickEdge);
@@ -274,7 +283,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  }
  window.addEventListener("blur",reset);
  document.addEventListener("visibilitychange",()=>{if(document.hidden)reset()});
- window.__iosLog?.("V18: accessible center-band look + shared reach limits for inward turn and strafe");
+ window.__iosLog?.("V19: 27% center-band look with symmetric continuous left/right turning");
  return {reset};
 }
 window.DeepWondersControls={mount};
