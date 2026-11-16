@@ -13,7 +13,7 @@ function mount({move,look,vertical,boost}){
   "#dw-swim-pad{position:fixed;z-index:500;right:0;top:0;bottom:0;width:55vw;width:55dvw;touch-action:none!important;overscroll-behavior:contain;pointer-events:auto!important;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:transparent}",
   "#dw-swim-hint{position:absolute;right:15px;bottom:max(22px,env(safe-area-inset-bottom));color:#e4ffffad;font:600 11px/1.3 system-ui;text-shadow:0 1px 5px #001722;pointer-events:none;letter-spacing:.02em;transition:opacity 1s}",
   "#dw-swim-hint.fade{opacity:0}",
-  "#dw-depth{position:fixed;z-index:700;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:9px;pointer-events:none}",
+  "#dw-depth{position:fixed;z-index:700;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:9px;pointer-events:auto!important}",
   "#dw-depth button{pointer-events:auto!important;touch-action:none!important;-webkit-touch-callout:none;width:65px;height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:3px 2px;background:#07394dbb;color:#dffbff;border:1px solid #8fe3ed9e;border-radius:12px;box-shadow:0 2px 9px #002431;font:800 12px/1.15 system-ui;letter-spacing:.04em;text-transform:none;transition:none}",
   "#dw-depth button b{font:900 17px/1 system-ui}",
   "#dw-depth button.pressed{background:#84dceb;color:#073647}",
