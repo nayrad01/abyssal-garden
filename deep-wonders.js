@@ -120,15 +120,108 @@ function place(L,r0,ot){
  put(16,-65,19,1.1,6,.4,.4);
  for(const [x,z] of [[-62,17],[-70,23],[-60,27]])put(15,x,z,.9,7,.2,.1);
 }
+
+/* Rounded, smooth-shaded fish with sculpted fins and readable eyes.
+   One shared GPU mesh, instanced thousands of times — no per-fish CPU animation. */
+function buildFish(Et){
+ const m=new Et;
+ const rings=[
+  [-.58,.025,.03],[-.49,.105,.079],[-.33,.17,.133],
+  [-.13,.228,.176],[.08,.238,.188],[.27,.203,.158],
+  [.44,.145,.114],[.58,.075,.059],[.675,.008,.009]
+ ];
+ const sides=10,loops=[];
+ for(const [x,h,w] of rings){
+  const ring=[];
+  for(let j=0;j<sides;j++){
+   const a=j*Math.PI*2/sides;
+   ring.push(m.v(x,Math.cos(a)*h,Math.sin(a)*w,1));
+  }
+  loops.push(ring);
+ }
+ for(let i=0;i<loops.length-1;i++)
+  for(let j=0;j<sides;j++){
+   const k=(j+1)%sides;
+   m.quad(loops[i][j],loops[i][k],loops[i+1][k],loops[i+1][j]);
+  }
+ const fin=(points,mat=.65)=>{
+  const vertices=points.map(p=>m.v(...p,mat));
+  for(let j=1;j<vertices.length-1;j++)m.tri(vertices[0],vertices[j],vertices[j+1]);
+ };
+ // Dorsal crest, caudal fan, anal fin and paired swept pectoral fins.
+ fin([[-.24,.19,0],[-.18,.34,0],[-.05,.41,0],[.19,.22,0]]);
+ fin([[-.55,.02,0],[-.88,.35,0],[-.79,.12,0],[-.81,-.12,0],[-.89,-.31,0],[-.58,-.02,0]]);
+ fin([[-.34,-.12,0],[-.22,-.27,0],[.03,-.22,0]]);
+ for(const side of [-1,1])
+  fin([[.21,-.01,side*.16],[.02,-.105,side*.33],[-.20,-.08,side*.42],[-.06,.06,side*.21]]);
+ // Two glossy eyes, dark iris and a small reflective highlight.
+ for(const side of [-1,1]){
+  const circle=(x,y,z,r,mat)=>{
+   const c=m.v(x,y,z,mat);
+   const rim=[];
+   for(let i=0;i<9;i++){
+    const a=i*Math.PI*2/9;
+    rim.push(m.v(x+Math.cos(a)*r,y+Math.sin(a)*r,z,mat));
+   }
+   for(let i=0;i<9;i++)m.tri(c,rim[i],rim[(i+1)%9]);
+  };
+  circle(.435,.047,side*.121,.039,-1);
+  circle(.443,.061,side*.124,.012,-.3);
+ }
+ return m.build();
+}
+
 function addFauna(fish,mantas){
- for(const [x,y,z,radius,count] of [[8,-32,82,13,140],[-43,-31,-62,18,105],[29,-29,44,18,110]]){
+ const hash=n=>{const v=Math.sin(n*127.17+78.23)*43758.5453;return v-Math.floor(v)};
+ // Keep wildlife around the fixed landmarks, but make the fish large enough to notice.
+ for(const [x,y,z,radius,count] of [[8,-30,82,12,46],[-43,-29,-62,15,38],[29,-28,44,15,48],[-65,-30,19,14,35],[48,-27,27,11,32]]){
   for(let i=0;i<count;i++){
-   const u=Math.sin(i*12.9898+x*4)*43758.5453,seed=u-Math.floor(u);
-   fish.push(x,y,z,radius,seed,1.5/radius,.34,.55);
+   const seed=hash(i+x*9+z*5);
+   const sign=hash(seed*13.2)>.5?1:-1;
+   fish.push(x,y,z,radius,seed,sign*1.6/radius,.72+hash(i*3+x)*.45,hash(i*1.7+z));
   }
  }
- for(const a of [[7,-18,84,24,1.7,.06,5.7,.72],[-42,-25,-62,25,3.2,.04,5.2,.3],
-  [-16,-21,-101,34,2.1,-.05,6.4,.85]])mantas.push(...a);
+ // Repeating *world-anchored* schools. The fish vertex shader tiles their
+ // positions around the camera, so every location has nearby wildlife.
+ // 121 independently swimming schools, about 1,900 visible-size fish total.
+ const spacing=11.5;
+ for(let gx=-5;gx<=5;gx++)for(let gz=-5;gz<=5;gz++){
+  const id=(gx+5)*11+gz+5;
+  const x=gx*spacing+(hash(id*7.3)-.5)*3.5;
+  const z=gz*spacing+(hash(id*13.7)-.5)*3.5;
+  const heightOffset=(hash(id*23.1)-.5)*15;
+  const orbit=3.3+hash(id*5.6)*6.7;
+  const count=12+Math.floor(hash(id*11.91)*12);
+  const direction=hash(id*2.75)>.5?1:-1;
+  for(let j=0;j<count;j++){
+   const seed=hash(id*19.73+j*1.71+.37);
+   const phase=hash(j*6.21+id*.17);
+   const size=(id%8===0?1.95:1.16)+seed*(id%8===0?.96:.8);
+   const omega=direction*(.9+hash(id*2.3+j*.83)*.8)/orbit;
+   fish.push(x,heightOffset,z,-orbit,seed,omega,size,phase);
+  }
+ }
+ // Big sculpted rays drift through the same nearby-space tiling system.
+ // Unlike a screen overlay, these are lit, depth-tested 3D meshes in the water.
+ for(let gx=-2;gx<=2;gx++)for(let gz=-2;gz<=2;gz++){
+  const id=(gx+2)*5+gz+2;
+  const x=gx*23.3+(hash(id*8.21)-.5)*11;
+  const z=gz*23.3+(hash(id*2.17)-.5)*11;
+  const heightOffset=(hash(id*12.11)-.5)*20;
+  const orbit=7.5+hash(id*3.17)*12;
+  const sign=hash(id*17.5)>.5?1:-1;
+  const wingSize=2.3+hash(id*7.41)*3.4;
+  mantas.push(x,heightOffset,z,-orbit,hash(id*7.3)*6.28,sign*(.025+hash(id*2.1)*.045),wingSize,hash(id*11.3));
+ }
+ // Existing larger animals at the six major discoveries.
+ for(const a of [
+  [7,-18,84,24,1.7,.06,5.7,.72],
+  [-42,-25,-62,25,3.2,.04,5.2,.3],
+  [-16,-21,-101,34,2.1,-.05,6.4,.85],
+  [29,-18,45,18,4.1,.045,5.3,.21],
+  [-65,-22,19,22,2.7,-.04,4.8,.6],
+  [47,-20,28,24,3.8,.037,5.5,.43]
+ ])mantas.push(...a);
 }
 function scenes(ground){
  const list=[
@@ -145,5 +238,5 @@ function scenes(ground){
    look:[x,Math.min(-2,fy+4),z]};
  });
 }
-window.DeepWonders={buildMeshes,place,addFauna,scenes};
+window.DeepWonders={buildMeshes,buildFish,place,addFauna,scenes};
 })();
