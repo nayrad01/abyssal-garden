@@ -1,4 +1,4 @@
-/* Deep Wonders V11 — continuous edge-turning and reverse swimming.
+/* Deep Wonders V15 — landscape-native touch coordinates, edge turn and reverse swimming.
  * Right hold swims forward, right double-tap-and-hold swims backward.
  * Drag to screen edge and hold for continuous turning, crossing halves freely.
  * Left swipe adjusts depth; double tap-hold boosts while swimming.
@@ -13,7 +13,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  css.textContent=[
   "html,body{overscroll-behavior:none}",
   "body.g{touch-action:none;-webkit-user-select:none;user-select:none}",
-  "#dw-swim-pad{position:fixed;z-index:500;right:0;top:0;bottom:0;width:50vw;width:50dvw;touch-action:none!important;overscroll-behavior:contain;pointer-events:auto!important;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:transparent}",
+  "#dw-swim-pad{position:fixed;z-index:500;right:0;top:0;bottom:0;width:50%;touch-action:none!important;overscroll-behavior:contain;pointer-events:auto!important;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;background:transparent}",
   "#dw-swim-hint{position:absolute;right:15px;bottom:max(22px,env(safe-area-inset-bottom));color:#d9ffffb8;font:600 11px/1.3 system-ui;text-shadow:0 1px 5px #001722;pointer-events:none;letter-spacing:.02em;transition:opacity 1s}",
   "#dw-swim-hint.fade{opacity:0}",
   "#dw-left-hint{position:fixed;z-index:300;left:max(14px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));color:#d9ffffb8;font:600 10px/1.35 system-ui;text-shadow:0 1px 5px #001722;pointer-events:none;transition:opacity 1s}",
@@ -35,10 +35,17 @@ function mount({move,look,verticalDrag,boost,dash}){
  const indicator=document.createElement("div");
  indicator.id="dw-boost-light";
  indicator.textContent="⚡ BOOST";
- document.body.append(swim,leftHint,indicator);
+ const stage=document.getElementById("dw-stage");
+ (stage||document.body).append(swim,leftHint,indicator);
  const rightHint=swim.querySelector("#dw-swim-hint");
  window.setTimeout(()=>{rightHint?.classList.add("fade");leftHint.classList.add("fade")},6500);
  const playing=()=>document.body.classList.contains("g");
+ const sideways=()=>window.matchMedia("(pointer:coarse) and (orientation:portrait)").matches;
+ const gameWidth=()=>stage?stage.clientWidth:window.innerWidth;
+ const gameHeight=()=>stage?stage.clientHeight:window.innerHeight;
+ // Rotated stage: local (x,y) maps to screen (screenWidth-y,x).
+ // Inverse-transform every touch, preserving finger identity across the screen.
+ const gamePoint=t=>sideways()?{x:t.clientY,y:window.innerWidth-t.clientX}:{x:t.clientX,y:t.clientY};
  const analog={forward:0,side:0,eventCount:0,source:"gesture"};
  window.__dwAnalog=analog;window.__dwGhost=false;
  let right=null,left=null,lastTap=null,lastRightTap=null,boosting=false,edgeLoopActive=false,edgeLastTime=0;
@@ -72,7 +79,7 @@ function mount({move,look,verticalDrag,boost,dash}){
   const dt=edgeLastTime?Math.max(0,Math.min(.05,(time-edgeLastTime)/1000)):0;
   edgeLastTime=time;
   if(dt&&right.edgeArmed){
-   const width=window.innerWidth;
+   const width=gameWidth();
    const margin=Math.max(30,Math.min(72,width*.14));
    const x=Math.max(0,Math.min(width,right.x));
    const penetration=x<margin?(margin-x)/margin:
@@ -93,13 +100,14 @@ function mount({move,look,verticalDrag,boost,dash}){
  function beginRight(e){
   if(!playing()||right!==null)return;
   for(const t of e.changedTouches){
-   if(t.clientX<window.innerWidth*.5)continue;
+   const p=gamePoint(t);
+   if(p.x<gameWidth()*.5)continue;
    const now=Date.now();
    const reverse=lastRightTap!==null&&now-lastRightTap.time<=310&&
-    Math.hypot(t.clientX-lastRightTap.x,t.clientY-lastRightTap.y)<=74;
+    Math.hypot(p.x-lastRightTap.x,p.y-lastRightTap.y)<=74;
    lastRightTap=null;
-   right={id:t.identifier,x:t.clientX,y:t.clientY,
-    startX:t.clientX,startY:t.clientY,startTime:now,
+   right={id:t.identifier,x:p.x,y:p.y,
+    startX:p.x,startY:p.y,startTime:now,
     dir:reverse?-1:1,travelX:0,maximumTravel:0,edgeArmed:false};
    stopNative(e);e.stopPropagation();
    setMove(right.dir);
@@ -114,12 +122,13 @@ function mount({move,look,verticalDrag,boost,dash}){
   if(!playing())return;
   for(const t of e.changedTouches){
    if(right!==null&&t.identifier===right.id)continue;
-   if(left!==null||t.clientX>=window.innerWidth*.5)continue;
+   const p=gamePoint(t);
+   if(left!==null||p.x>=gameWidth()*.5)continue;
    const now=Date.now();
    const isDouble=lastTap!==null&&now-lastTap.time<=tapMs&&
-     Math.hypot(t.clientX-lastTap.x,t.clientY-lastTap.y)<=tapDistance;
+     Math.hypot(p.x-lastTap.x,p.y-lastTap.y)<=tapDistance;
    left={
-    id:t.identifier,startX:t.clientX,startY:t.clientY,lastY:t.clientY,
+    id:t.identifier,startX:p.x,startY:p.y,lastY:p.y,
     startTime:now,maximumTravel:0,mode:"drag"
    };
    if(isDouble){
@@ -145,23 +154,24 @@ function mount({move,look,verticalDrag,boost,dash}){
   if(!playing()||(!right&&!left))return;
   let handled=false;
   for(const t of e.touches){
+   const p=gamePoint(t);
    if(right!==null&&t.identifier===right.id){
-    const dx=t.clientX-right.x,dy=t.clientY-right.y;
+    const dx=p.x-right.x,dy=p.y-right.y;
     right.travelX+=Math.abs(dx);
     right.maximumTravel=Math.max(right.maximumTravel,
-     Math.hypot(t.clientX-right.startX,t.clientY-right.startY));
+     Math.hypot(p.x-right.startX,p.y-right.startY));
     if(right.travelX>=20)right.edgeArmed=true;
-    right.x=t.clientX;right.y=t.clientY;
+    right.x=p.x;right.y=p.y;
     if(Math.abs(dx)+Math.abs(dy)>.01){
-     const sensitivity=520/Math.max(240,Math.min(window.innerWidth,window.innerHeight));
+     const sensitivity=520/Math.max(240,Math.min(gameWidth(),gameHeight()));
      look(dx*sensitivity,dy*sensitivity);
     }
     handled=true;
    }
    if(left!==null&&t.identifier===left.id){
-    const dy=t.clientY-left.lastY;left.lastY=t.clientY;
+    const dy=p.y-left.lastY;left.lastY=p.y;
     left.maximumTravel=Math.max(left.maximumTravel,
-      Math.hypot(t.clientX-left.startX,t.clientY-left.startY));
+      Math.hypot(p.x-left.startX,p.y-left.startY));
     if(Math.abs(dy)>.01)verticalDrag(-dy*.078);
     handled=true;
    }
@@ -172,19 +182,20 @@ function mount({move,look,verticalDrag,boost,dash}){
   if(!right&&!left)return;
   let handled=false;
   for(const t of e.changedTouches){
+   const p=gamePoint(t);
    if(right!==null&&t.identifier===right.id){
     const ended=right;
     if(e.type==="touchend"&&ended.dir===1&&
      Date.now()-ended.startTime<=245&&ended.maximumTravel<=24&&
      ended.travelX<20){
-     lastRightTap={time:Date.now(),x:t.clientX,y:t.clientY};
+     lastRightTap={time:Date.now(),x:p.x,y:p.y};
     }else lastRightTap=null;
     right=null;setMove(0);handled=true;
    }
    if(left!==null&&t.identifier===left.id){
     if(e.type==="touchend"&&left.mode==="drag"&&
        Date.now()-left.startTime<=250&&left.maximumTravel<=24){
-     lastTap={time:Date.now(),x:t.clientX,y:t.clientY};
+     lastTap={time:Date.now(),x:p.x,y:p.y};
     }else lastTap=null;
     left=null;syncBoost();handled=true;
    }
@@ -202,15 +213,15 @@ function mount({move,look,verticalDrag,boost,dash}){
  if(!("ontouchstart" in window)){
   swim.addEventListener("pointerdown",e=>{
    if(right||!playing())return;
-   right={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,travelX:0,edgeArmed:false};e.preventDefault();
+   const p=gamePoint(e);right={id:e.pointerId,x:p.x,y:p.y,startX:p.x,startY:p.y,travelX:0,edgeArmed:false};e.preventDefault();
    try{swim.setPointerCapture(e.pointerId)}catch{}
    setMove(1);startEdgeLoop();
   });
   swim.addEventListener("pointermove",e=>{
    if(!right||right.id!==e.pointerId)return;
-   const dx=e.clientX-right.x,dy=e.clientY-right.y;
+   const p=gamePoint(e);const dx=p.x-right.x,dy=p.y-right.y;
    right.travelX+=Math.abs(dx);if(right.travelX>=20)right.edgeArmed=true;
-   right.x=e.clientX;right.y=e.clientY;
+   right.x=p.x;right.y=p.y;
    look(dx*1.2,dy*1.2);
   });
   for(const type of ["pointerup","pointercancel","lostpointercapture"])
@@ -220,7 +231,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  }
  window.addEventListener("blur",reset);
  document.addEventListener("visibilitychange",()=>{if(document.hidden)reset()});
- window.__iosLog?.("V11: right edge-turn and reverse double-hold; left depth and boost");
+ window.__iosLog?.("V15: landscape stage touch coordinates; edge-turn, reverse and boost ready");
  return {reset};
 }
 window.DeepWondersControls={mount};
