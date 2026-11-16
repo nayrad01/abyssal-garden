@@ -1,7 +1,8 @@
-/* Deep Wonders V15 — landscape-native touch coordinates, edge turn and reverse swimming.
+/* Deep Wonders V16 — two-thumb sideways strafing, depth, boost, reverse and edge-turning.
  * Right hold swims forward, right double-tap-and-hold swims backward.
  * Drag to screen edge and hold for continuous turning, crossing halves freely.
- * Left swipe adjusts depth; double tap-hold boosts while swimming.
+ * Left vertical drag adjusts depth, horizontal drag strafes continuously.
+ * Drag from left to either edge and hold to keep strafing; double tap-hold boosts.
  * Stationary left double tap dashes once without sustained movement.
  * Original Abyssal Garden by Maksymilian Dendura — MIT license.
  */
@@ -31,7 +32,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  swim.innerHTML='<span id="dw-swim-hint">RIGHT: HOLD / DRAG · DOUBLE HOLD = REVERSE</span>';
  const leftHint=document.createElement("div");
  leftHint.id="dw-left-hint";
- leftHint.textContent="LEFT: DRAG DEPTH · DOUBLE TAP";
+ leftHint.textContent="LEFT: DRAG TO STRAFE / DIVE";
  const indicator=document.createElement("div");
  indicator.id="dw-boost-light";
  indicator.textContent="⚡ BOOST";
@@ -51,10 +52,17 @@ function mount({move,look,verticalDrag,boost,dash}){
  let right=null,left=null,lastTap=null,lastRightTap=null,boosting=false,edgeLoopActive=false,edgeLastTime=0;
  const tapMs=300,tapDistance=70;
  function setMove(value){
-  analog.forward=value;analog.side=0;analog.eventCount++;
-  analog.source=value<0?"reverse":value>0?"forward":"idle";
-  move(analog.forward,0);
+  analog.forward=value;analog.eventCount++;
+  analog.source=value<0?"reverse":value>0?"forward":analog.side?"strafe":"idle";
+  move(analog.forward,analog.side);
   syncBoost();
+ }
+ function setStrafe(value){
+  const next=Math.max(-1,Math.min(1,value));
+  if(Math.abs(next-analog.side)<.005)return;
+  analog.side=next;analog.eventCount++;
+  analog.source=analog.forward<0?"reverse":analog.forward>0?"forward":next?"strafe":"idle";
+  move(analog.forward,analog.side);
  }
  function syncBoost(){
   const active=right!==null&&left!==null&&left.mode==="boost";
@@ -64,7 +72,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  }
  function reset(){
   right=null;left=null;lastTap=null;lastRightTap=null;edgeLastTime=0;
-  setMove(0);syncBoost();
+  setMove(0);setStrafe(0);syncBoost();
   window.__dwDashTime=0;window.__dwVerticalScroll=0;
  }
  const stopNative=e=>{if(e.cancelable)e.preventDefault()};
@@ -129,7 +137,7 @@ function mount({move,look,verticalDrag,boost,dash}){
      Math.hypot(p.x-lastTap.x,p.y-lastTap.y)<=tapDistance;
    left={
     id:t.identifier,startX:p.x,startY:p.y,lastY:p.y,
-    startTime:now,maximumTravel:0,mode:"drag"
+    startTime:now,maximumTravel:0,mode:"drag",strafe:0
    };
    if(isDouble){
     lastTap=null;
@@ -172,6 +180,12 @@ function mount({move,look,verticalDrag,boost,dash}){
     const dy=p.y-left.lastY;left.lastY=p.y;
     left.maximumTravel=Math.max(left.maximumTravel,
       Math.hypot(p.x-left.startX,p.y-left.startY));
+    // Thumb displacement acts like a hidden analog stick on the horizontal
+    // axis; unlike a swipe impulse, holding it at the edge keeps moving.
+    const dx=p.x-left.startX,dead=16,reach=96;
+    const amount=Math.abs(dx)<=dead?0:Math.sign(dx)*Math.min(1,(Math.abs(dx)-dead)/(reach-dead));
+    left.strafe=amount;
+    setStrafe(amount);
     if(Math.abs(dy)>.01)verticalDrag(-dy*.078);
     handled=true;
    }
@@ -197,7 +211,7 @@ function mount({move,look,verticalDrag,boost,dash}){
        Date.now()-left.startTime<=250&&left.maximumTravel<=24){
      lastTap={time:Date.now(),x:p.x,y:p.y};
     }else lastTap=null;
-    left=null;syncBoost();handled=true;
+    left=null;setStrafe(0);syncBoost();handled=true;
    }
   }
   if(handled)stopNative(e);
@@ -231,7 +245,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  }
  window.addEventListener("blur",reset);
  document.addEventListener("visibilitychange",()=>{if(document.hidden)reset()});
- window.__iosLog?.("V15: landscape stage touch coordinates; edge-turn, reverse and boost ready");
+ window.__iosLog?.("V16: horizontal strafe + depth drag on left; right swim and steer");
  return {reset};
 }
 window.DeepWondersControls={mount};
