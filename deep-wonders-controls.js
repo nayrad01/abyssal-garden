@@ -1,8 +1,9 @@
-/* Deep Wonders V17 — stationary center free-look, midpoint turning and smooth lateral swimming.
+/* Deep Wonders V18 — proportional thumb-reach zones shared by free-look, turning and strafing.
  * Right hold swims forward, right double-tap-and-hold swims backward.
- * A narrow center-origin gesture looks without swimming; dragging across the midpoint keeps turning.
+ * The center fifth of the landscape display starts stationary free-look.
+ * The same center-band boundaries govern sustained inward turning and strafing.
  * Left vertical drag adjusts depth, horizontal drag strafes continuously.
- * Left strafe reaches maximum at the outer edge or center line; double tap-hold boosts.
+ * Left strafe reaches maximum at the outer edge or the near center-band boundary; double tap-hold boosts.
  * Stationary left double tap dashes once without sustained movement.
  * Original Abyssal Garden by Maksymilian Dendura — MIT license.
  */
@@ -50,7 +51,10 @@ function mount({move,look,verticalDrag,boost,dash}){
  // Touches are classified by their ORIGINAL landscape-space starting point.
  // Recognition is done in document capture so the center needs no extra
  // overlay/hitbox (especially important for the earlier iPhone hit-test issue).
- const isCenter=x=>Math.abs(x-gameWidth()*.5)<=gameWidth()*.045;
+ const centerHalfWidth=()=>gameWidth()*.10;
+ const centerLeft=()=>gameWidth()*.5-centerHalfWidth();
+ const centerRight=()=>gameWidth()*.5+centerHalfWidth();
+ const isCenter=x=>x>=centerLeft()&&x<=centerRight();
  const analog={forward:0,side:0,eventCount:0,source:"gesture"};
  window.__dwAnalog=analog;window.__dwGhost=false;
  let right=null,left=null,lastTap=null,lastRightTap=null,boosting=false,edgeLoopActive=false,edgeLastTime=0;
@@ -91,12 +95,12 @@ function mount({move,look,verticalDrag,boost,dash}){
   const dt=edgeLastTime?Math.max(0,Math.min(.05,(time-edgeLastTime)/1000)):0;
   edgeLastTime=time;
   if(dt&&right.edgeArmed){
-   const width=gameWidth(),mid=width*.5;
+   const width=gameWidth(),inwardBorder=centerRight();
    const margin=Math.max(30,Math.min(72,width*.14));
    const x=Math.max(0,Math.min(width,right.x));
-   // Inward-left reaches its continuation zone at the CENTER,
-   // while turning right still reaches continuation at the outer edge.
-   const inward=x<mid?Math.min(1,(mid-x)/margin):0;
+   // The right edge of the center free-look band is also the reach
+   // threshold for continuous leftward turning.
+   const inward=x<inwardBorder?Math.min(1,(inwardBorder-x)/margin):0;
    const outward=x>width-margin?Math.min(1,(x-(width-margin))/margin):0;
    if(inward>0||outward>0){
     const turn=inward>0?-(.35+.65*inward):(.35+.65*outward);
@@ -202,9 +206,9 @@ function mount({move,look,verticalDrag,boost,dash}){
     left.maximumTravel=Math.max(left.maximumTravel,
       Math.hypot(p.x-left.startX,p.y-left.startY));
     // Smooth thumb-responsive lateral speed; full sideways speed occurs
-    // when the drag reaches the center (rightward) or outer edge (leftward).
+    // at the nearest center-band boundary (rightward) or outer edge (leftward).
     const dx=p.x-left.startX;
-    const limit=dx>=0?gameWidth()*.5:0;
+    const limit=dx>=0?centerLeft():0;
     const span=Math.max(1,Math.abs(limit-left.startX));
     const dead=Math.min(12,span*.2);
     const fraction=Math.max(0,Math.min(1,(Math.abs(dx)-dead)/Math.max(.01,span-dead)));
@@ -270,7 +274,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  }
  window.addEventListener("blur",reset);
  document.addEventListener("visibilitychange",()=>{if(document.hidden)reset()});
- window.__iosLog?.("V17: center drag free-look; midpoint turn; left smooth strafing; right swim");
+ window.__iosLog?.("V18: accessible center-band look + shared reach limits for inward turn and strafe");
  return {reset};
 }
 window.DeepWondersControls={mount};
