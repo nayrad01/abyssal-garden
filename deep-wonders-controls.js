@@ -1,8 +1,8 @@
-/* Deep Wonders V16 — two-thumb sideways strafing, depth, boost, reverse and edge-turning.
+/* Deep Wonders V17 — stationary center free-look, midpoint turning and smooth lateral swimming.
  * Right hold swims forward, right double-tap-and-hold swims backward.
- * Drag to screen edge and hold for continuous turning, crossing halves freely.
+ * A narrow center-origin gesture looks without swimming; dragging across the midpoint keeps turning.
  * Left vertical drag adjusts depth, horizontal drag strafes continuously.
- * Drag from left to either edge and hold to keep strafing; double tap-hold boosts.
+ * Left strafe reaches maximum at the outer edge or center line; double tap-hold boosts.
  * Stationary left double tap dashes once without sustained movement.
  * Original Abyssal Garden by Maksymilian Dendura — MIT license.
  */
@@ -47,6 +47,10 @@ function mount({move,look,verticalDrag,boost,dash}){
  // Rotated stage: local (x,y) maps to screen (screenWidth-y,x).
  // Inverse-transform every touch, preserving finger identity across the screen.
  const gamePoint=t=>sideways()?{x:t.clientY,y:window.innerWidth-t.clientX}:{x:t.clientX,y:t.clientY};
+ // Touches are classified by their ORIGINAL landscape-space starting point.
+ // Recognition is done in document capture so the center needs no extra
+ // overlay/hitbox (especially important for the earlier iPhone hit-test issue).
+ const isCenter=x=>Math.abs(x-gameWidth()*.5)<=gameWidth()*.045;
  const analog={forward:0,side:0,eventCount:0,source:"gesture"};
  window.__dwAnalog=analog;window.__dwGhost=false;
  let right=null,left=null,lastTap=null,lastRightTap=null,boosting=false,edgeLoopActive=false,edgeLastTime=0;
@@ -65,7 +69,7 @@ function mount({move,look,verticalDrag,boost,dash}){
   move(analog.forward,analog.side);
  }
  function syncBoost(){
-  const active=right!==null&&left!==null&&left.mode==="boost";
+  const active=right!==null&&right.dir!==0&&left!==null&&left.mode==="boost";
   if(active===boosting)return;
   boosting=active;boost(active);
   indicator.classList.toggle("active",active);
@@ -87,15 +91,16 @@ function mount({move,look,verticalDrag,boost,dash}){
   const dt=edgeLastTime?Math.max(0,Math.min(.05,(time-edgeLastTime)/1000)):0;
   edgeLastTime=time;
   if(dt&&right.edgeArmed){
-   const width=gameWidth();
+   const width=gameWidth(),mid=width*.5;
    const margin=Math.max(30,Math.min(72,width*.14));
    const x=Math.max(0,Math.min(width,right.x));
-   const penetration=x<margin?(margin-x)/margin:
-    x>width-margin?(x-(width-margin))/margin:0;
-   if(penetration>0){
-    const direction=x<width*.5?-1:1;
-    const radiansPerSecond=2.25*Math.pow(Math.min(1,penetration),1.4);
-    look(direction*radiansPerSecond*dt/.0022,0);
+   // Inward-left reaches its continuation zone at the CENTER,
+   // while turning right still reaches continuation at the outer edge.
+   const inward=x<mid?Math.min(1,(mid-x)/margin):0;
+   const outward=x>width-margin?Math.min(1,(x-(width-margin))/margin):0;
+   if(inward>0||outward>0){
+    const turn=inward>0?-(.35+.65*inward):(.35+.65*outward);
+    look(turn*2.25*dt/.0022,0);
    }
   }
   window.requestAnimationFrame(tickEdge);
@@ -105,11 +110,27 @@ function mount({move,look,verticalDrag,boost,dash}){
   edgeLoopActive=true;edgeLastTime=0;
   window.requestAnimationFrame(tickEdge);
  }
+ function beginCenter(e){
+  if(!playing()||right!==null)return;
+  for(const t of e.changedTouches){
+   const p=gamePoint(t);
+   if(!isCenter(p.x))continue;
+   const now=Date.now();
+   lastRightTap=null;
+   right={id:t.identifier,x:p.x,y:p.y,
+    startX:p.x,startY:p.y,startTime:now,
+    dir:0,travelX:0,maximumTravel:0,edgeArmed:false};
+   stopNative(e);
+   setMove(0); // stationary look — no forward or reverse propulsion
+   startEdgeLoop();
+   return;
+  }
+ }
  function beginRight(e){
   if(!playing()||right!==null)return;
   for(const t of e.changedTouches){
    const p=gamePoint(t);
-   if(p.x<gameWidth()*.5)continue;
+   if(p.x<gameWidth()*.5||isCenter(p.x))continue;
    const now=Date.now();
    const reverse=lastRightTap!==null&&now-lastRightTap.time<=310&&
     Math.hypot(p.x-lastRightTap.x,p.y-lastRightTap.y)<=74;
@@ -141,7 +162,7 @@ function mount({move,look,verticalDrag,boost,dash}){
    };
    if(isDouble){
     lastTap=null;
-    if(right!==null){
+    if(right!==null&&right.dir!==0){
      left.mode="boost";
      syncBoost();
     }else{
@@ -180,10 +201,14 @@ function mount({move,look,verticalDrag,boost,dash}){
     const dy=p.y-left.lastY;left.lastY=p.y;
     left.maximumTravel=Math.max(left.maximumTravel,
       Math.hypot(p.x-left.startX,p.y-left.startY));
-    // Thumb displacement acts like a hidden analog stick on the horizontal
-    // axis; unlike a swipe impulse, holding it at the edge keeps moving.
-    const dx=p.x-left.startX,dead=16,reach=96;
-    const amount=Math.abs(dx)<=dead?0:Math.sign(dx)*Math.min(1,(Math.abs(dx)-dead)/(reach-dead));
+    // Smooth thumb-responsive lateral speed; full sideways speed occurs
+    // when the drag reaches the center (rightward) or outer edge (leftward).
+    const dx=p.x-left.startX;
+    const limit=dx>=0?gameWidth()*.5:0;
+    const span=Math.max(1,Math.abs(limit-left.startX));
+    const dead=Math.min(12,span*.2);
+    const fraction=Math.max(0,Math.min(1,(Math.abs(dx)-dead)/Math.max(.01,span-dead)));
+    const amount=Math.sign(dx)*Math.sqrt(fraction);
     left.strafe=amount;
     setStrafe(amount);
     if(Math.abs(dy)>.01)verticalDrag(-dy*.078);
@@ -218,7 +243,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  }
  for(const type of ["touchstart","touchmove","touchend","touchcancel"]){
   document.addEventListener(type,e=>{
-   if(type==="touchstart")beginLeft(e);
+   if(type==="touchstart"){beginCenter(e);beginLeft(e)}
    else if(type==="touchmove")moveTouches(e);
    else endTouches(e);
   },{capture:true,passive:false});
@@ -245,7 +270,7 @@ function mount({move,look,verticalDrag,boost,dash}){
  }
  window.addEventListener("blur",reset);
  document.addEventListener("visibilitychange",()=>{if(document.hidden)reset()});
- window.__iosLog?.("V16: horizontal strafe + depth drag on left; right swim and steer");
+ window.__iosLog?.("V17: center drag free-look; midpoint turn; left smooth strafing; right swim");
  return {reset};
 }
 window.DeepWondersControls={mount};
